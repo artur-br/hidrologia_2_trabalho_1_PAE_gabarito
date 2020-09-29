@@ -33,7 +33,7 @@ def calculo_tempo_de_concentracao (L, S, method, CN = 0, c = 0, n = 0, I = 0):
 
     elif method == "faa":
         if 0 < c < 1:
-            tc = 23.73 * (1.1 - c) * (L ** 0.5) * (S ** -0.333)
+            tc = 22.73 * (1.1 - c) * (L ** 0.5) * (S ** -0.333)
         else:
             raise ValueError("Digite um valor válido de c")
 
@@ -55,7 +55,8 @@ def calculo_Kc(P, A):
     :return Kc: Coeficiente de compacidade (adimensional)
     """
     from math import pi
-    Kc = P / (2 * pi * ((A / pi) ** 1/2))
+    Kc = 0.28 * (P / (A ** 0.5))
+    #Kc = P / (2 * pi * ((A / pi) ** 1/2))
 
     return Kc
 
@@ -70,13 +71,40 @@ def calculo_F (largura_media, comprimento_eixo):
 
     return F
 
+def calculo_S(L, cota_alta, cota_baixa, method):
+    """
+    :param L: Comprimento do rio principal
+    :param cota_alta: Cota mais alta
+    :param cota_baixa: Cota mais baixa
+    :param method: Método de cálculo, pode ser "extreme" ou "10-85"
+    :return: 
+    """
+    if method == "10-85":
+        S = (cota_alta - cota_baixa)/(0.75 * L)
+
+    elif method == "extreme":
+        S = (cota_alta - cota_baixa) / L
+
+    return S
+
+def calculo_media_ponderada(*args):
+    """
+    :param args: Entra com um argumento com duas listas. A primeira com as variáveis (CN, c ou n) e a segunda com
+    as áreas respectivas de cada variável
+    :return: retorna a média ponderada
+    """
+    denominador = sum(args[1])
+    numerador = 0
+    for i in range(len(args[0])):
+        numerador += args[0][i] * args[1][i]
+    media_ponderada = numerador / denominador
+    return media_ponderada
+
+
 ##Função para calcular os parâmetros da taxa de infiltração:
 from pyeasyga import pyeasyga
 import random
 import math
-
-data = {'time': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25],
-        'F_obs': [0, 30, 40, 45, 49, 51, 52, 54, 56, 57, 59, 63, 66, 70]}
 
 
 def create_individual(data):
@@ -136,23 +164,9 @@ def fitness(individual, data):
     for i in range(1, len(data['F_obs'])):
         F_calc = (individual[1] * data['time'][i]) + ((individual[0] - individual[1]) / individual[2]) * \
                  (1 - math.exp(-individual[2] * data['time'][i]))
+        #F_calc = individual[1] + (individual[0] - individual[1]) * math.exp(-individual[2] * data["time"][i])
         quadratic_error += (data['F_obs'][i] - F_calc) ** 2
     return(quadratic_error)
-
-
-ga = pyeasyga.GeneticAlgorithm(data,
-                               population_size=200,
-                               generations=1000,
-                               mutation_probability=0.05,
-                               crossover_probability=0.8,
-                               maximise_fitness=False,
-                               elitism=True)
-
-#definindo as funções individuo, mutação e cross over na instância ga
-ga.create_individual = create_individual
-ga.mutate_function = mutate
-ga.crossover_function = cross_over
-ga.fitness_function = fitness
 
 
 def run_ga():
@@ -170,5 +184,29 @@ def run_ga():
         print(i, results[i][0])
     return(results)
 
+##########################################################################################################################
+#Exemplo de aplicação
+##########################################################################################################################
 
-resultados = run_ga()
+L = 21.4
+S = calculo_S(L*1000, 584.881, 523.571, "10-85")
+CN = 66.2
+c = 0.205
+n = 0.033
+I = [5, 30]
+P = 70.4
+A = 101.6
+
+calculo_tempo_de_concentracao(L, S, "Kirpich")
+calculo_tempo_de_concentracao(L, S, "NRCS", CN =CN)
+calculo_tempo_de_concentracao(L, S, "FAA", c=c)
+calculo_tempo_de_concentracao(L, S, "Onda Cinematica", n=n, I=I[0])
+calculo_tempo_de_concentracao(L, S, "Onda Cinematica", n=n, I=I[1])
+
+calculo_Kc(P, A)
+calculo_F(11.601, 15.010)
+
+#curva H
+
+data = {'time': [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60],
+        'F_obs': [72.2, 72.2, 68.8, 68.8, 61.9, 61.9, 55.0, 51.6, 41.3, 30.9, 30.9, 30.9]}
